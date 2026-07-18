@@ -119,14 +119,28 @@ function setupModals() {
         }
     });
 
-    // Google buttons (simulated)
+    // Google buttons — trigger Google Identity Services prompt
     document.getElementById('googleBtn').addEventListener('click', () => {
-        showNotification('Google sign-up coming soon!', 'info');
-        document.getElementById('signupModal').style.display = 'none';
+        if (typeof google !== 'undefined' && google.accounts) {
+            google.accounts.id.prompt((notification) => {
+                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                    showNotification('Google sign-in popup was blocked. Please allow popups or try again.', 'warning');
+                }
+            });
+        } else {
+            showNotification('Google sign-in is loading, please try again in a moment.', 'info');
+        }
     });
     document.getElementById('googleSigninBtn').addEventListener('click', () => {
-        showNotification('Google sign-in coming soon!', 'info');
-        document.getElementById('signinModal').style.display = 'none';
+        if (typeof google !== 'undefined' && google.accounts) {
+            google.accounts.id.prompt((notification) => {
+                if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+                    showNotification('Google sign-in popup was blocked. Please allow popups or try again.', 'warning');
+                }
+            });
+        } else {
+            showNotification('Google sign-in is loading, please try again in a moment.', 'info');
+        }
     });
 }
 
@@ -161,6 +175,59 @@ function detectLocation() {
     );
 }
 
+// ============================================================
+// Google Identity Services
+// ============================================================
+// IMPORTANT: Replace YOUR_GOOGLE_CLIENT_ID below with your own.
+// To get one:
+//   1. Go to https://console.cloud.google.com/
+//   2. Create a project (or select existing)
+//   3. Go to APIs & Services > Credentials
+//   4. Create OAuth 2.0 Client ID (Web application)
+//   5. Add your domain to Authorized JavaScript origins
+//      e.g. http://localhost:5500, http://127.0.0.1:5500
+//   6. Copy the Client ID string
+const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+
+function initGoogleSignIn() {
+    if (typeof google === 'undefined' || !google.accounts) {
+        // GIS script not loaded yet, retry shortly
+        setTimeout(initGoogleSignIn, 200);
+        return;
+    }
+
+    google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+        auto_select: false,
+        cancel_on_tap_outside: true
+    });
+
+    // Render hidden Google buttons (we trigger them via our own UI buttons)
+    google.accounts.id.renderButton(
+        document.getElementById('googleSignupContainer'),
+        { theme: 'outline', size: 'large', text: 'signup_with', width: 300 }
+    );
+    google.accounts.id.renderButton(
+        document.getElementById('googleSigninContainer'),
+        { theme: 'outline', size: 'large', text: 'signin_with', width: 300 }
+    );
+}
+
+// Callback after Google issues a JWT credential
+async function handleGoogleCredential(response) {
+    const result = await Auth.googleSignIn(response);
+    if (result.success) {
+        showNotification(result.message, 'success');
+        // Close any open auth modal
+        document.getElementById('signupModal').style.display = 'none';
+        document.getElementById('signinModal').style.display = 'none';
+        Cart.init();
+    } else {
+        showNotification(result.message, 'error');
+    }
+}
+
 // Initialize everything
 async function initApp() {
     await DB.init();
@@ -169,6 +236,7 @@ async function initApp() {
     renderMenu();
     setupModals();
     detectLocation();
+    initGoogleSignIn();
 }
 
 // Run on DOM ready

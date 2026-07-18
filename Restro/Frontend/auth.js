@@ -82,10 +82,55 @@ const Auth = {
         return { success: true, message: `Welcome back, ${user.name}!`, user };
     },
 
+    // Sign in with Google (receives JWT credential from Google Identity Services)
+    async googleSignIn(jwtResponse) {
+        try {
+            // Decode the JWT payload (the middle part)
+            const payload = JSON.parse(atob(jwtResponse.credential.split('.')[1]));
+
+            const googleUser = {
+                sub: payload.sub,              // Google's unique user ID
+                name: payload.name,
+                email: payload.email,
+                picture: payload.picture,
+                provider: 'google',
+                createdAt: new Date().toISOString()
+            };
+
+            // Check if this Google user already exists in our DB
+            let existingUser = await DB.getOneByIndex('users', 'email', googleUser.email);
+
+            if (existingUser) {
+                // User exists — update their Google info if needed
+                existingUser.picture = googleUser.picture;
+                existingUser.sub = googleUser.sub;
+                existingUser.provider = 'google';
+                await DB.update('users', existingUser);
+                this.currentUser = existingUser;
+            } else {
+                // New user — save to DB
+                const userId = await DB.add('users', googleUser);
+                googleUser.id = userId;
+                this.currentUser = googleUser;
+            }
+
+            localStorage.setItem('sessionId', this.currentUser.id);
+            this.updateUI(true);
+            return { success: true, message: `Welcome, ${this.currentUser.name}!`, user: this.currentUser };
+        } catch (e) {
+            console.error('Google sign-in error:', e);
+            return { success: false, message: 'Google sign-in failed. Please try again.' };
+        }
+    },
+
     // Sign out
     signout() {
         this.currentUser = null;
         localStorage.removeItem('sessionId');
+        // Also revoke Google session if applicable
+        if (typeof google !== 'undefined' && google.accounts && google.accounts.id) {
+            google.accounts.id.disableAutoSelect();
+        }
         this.updateUI(false);
         Cart.clear();
         showNotification('Signed out successfully.', 'info');
@@ -113,7 +158,13 @@ const Auth = {
             if (signinBtn) signinBtn.style.display = 'none';
             if (userGreeting) {
                 userGreeting.style.display = 'flex';
-                userGreeting.querySelector('.user-name').textContent = this.currentUser.name;
+                const iconEl = userGreeting.querySelector('.user-icon');
+                const nameEl = userGreeting.querySelector('.user-name');
+                // Show Google profile picture if available
+                if (this.currentUser.picture && iconEl) {
+                    iconEl.innerHTML = `<img src="${this.currentUser.picture}" alt="avatar" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">`;
+                }
+                if (nameEl) nameEl.textContent = this.currentUser.name;
             }
             if (signoutBtn) signoutBtn.style.display = 'block';
         } else {

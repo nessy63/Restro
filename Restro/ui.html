@@ -370,6 +370,7 @@
                 </svg>
                 Continue with Google
             </button>
+            <div id="googleSignupContainer" style="display:flex;justify-content:center;margin-top:10px;"></div>
         </div>
     </div>
 
@@ -394,6 +395,7 @@
                 </svg>
                 Continue with Google
             </button>
+            <div id="googleSigninContainer" style="display:flex;justify-content:center;margin-top:10px;"></div>
         </div>
     </div>
 
@@ -434,6 +436,9 @@
             <button class="btn-close-modal" onclick="document.getElementById('orderHistoryModal').style.display='none'">Close</button>
         </div>
     </div>
+
+    <!-- Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
 
     <!-- Scripts -->
     <script src="Frontend/db.js"></script>
