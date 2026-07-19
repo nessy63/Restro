@@ -1,6 +1,6 @@
 // Cart module - manages shopping cart with IndexedDB persistence
 const Cart = {
-    items: [], // { itemId, name, price, quantity, image }
+    items: [],
 
     async init() {
         if (Auth.isLoggedIn()) {
@@ -29,12 +29,10 @@ const Cart = {
             return;
         }
 
-        // Check if item already in cart
         const existingIndex = this.items.findIndex(i => i.itemId === menuItem.id);
 
         if (existingIndex >= 0) {
             this.items[existingIndex].quantity += 1;
-            // Update in DB
             await DB.update('cart', {
                 id: this.items[existingIndex].id,
                 userId: Auth.getUser().id,
@@ -59,7 +57,7 @@ const Cart = {
         }
 
         this.updateUI();
-        showNotification(`${menuItem.name} added to cart!`, 'success');
+        showNotification(Security.escapeHTML(menuItem.name) + ' added to cart!', 'success');
     },
 
     async removeItem(cartId) {
@@ -126,17 +124,28 @@ const Cart = {
                 cartItemsList.innerHTML = this.items.map(item => `
                     <div class="cart-item">
                         <div class="cart-item-info">
-                            <span class="cart-item-name">${item.name}</span>
+                            <span class="cart-item-name">${Security.escapeHTML(item.name)}</span>
                             <span class="cart-item-price">$${(item.price * item.quantity).toFixed(2)}</span>
                         </div>
                         <div class="cart-item-controls">
-                            <button class="qty-btn" onclick="Cart.updateQuantity(${item.id}, ${item.quantity - 1})">-</button>
+                            <button class="qty-btn" data-action="decrement" data-id="${item.id}">-</button>
                             <span class="qty-display">${item.quantity}</span>
-                            <button class="qty-btn" onclick="Cart.updateQuantity(${item.id}, ${item.quantity + 1})">+</button>
-                            <button class="remove-btn" onclick="Cart.removeItem(${item.id})">x</button>
+                            <button class="qty-btn" data-action="increment" data-id="${item.id}">+</button>
+                            <button class="remove-btn" data-action="remove" data-id="${item.id}">x</button>
                         </div>
                     </div>
                 `).join('');
+
+                // Attach event listeners safely
+                cartItemsList.querySelectorAll('[data-action]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = parseInt(btn.dataset.id);
+                        const action = btn.dataset.action;
+                        if (action === 'decrement') Cart.updateQuantity(id, Cart.items.find(i => i.id === id).quantity - 1);
+                        else if (action === 'increment') Cart.updateQuantity(id, Cart.items.find(i => i.id === id).quantity + 1);
+                        else if (action === 'remove') Cart.removeItem(id);
+                    });
+                });
             }
         }
 

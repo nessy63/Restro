@@ -1,6 +1,6 @@
 // IndexedDB wrapper for Delicious Restaurant
 const DB_NAME = 'DeliciousRestaurantDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const DB = {
     db: null,
@@ -31,6 +31,14 @@ const DB = {
                     const cartStore = db.createObjectStore('cart', { keyPath: 'id', autoIncrement: true });
                     cartStore.createIndex('userId', 'userId', { unique: false });
                     cartStore.createIndex('itemId', 'itemId', { unique: false });
+                }
+
+                // Reservations store
+                if (!db.objectStoreNames.contains('reservations')) {
+                    const resStore = db.createObjectStore('reservations', { keyPath: 'id', autoIncrement: true });
+                    resStore.createIndex('tableId', 'tableId', { unique: false });
+                    resStore.createIndex('userId', 'userId', { unique: false });
+                    resStore.createIndex('status', 'status', { unique: false });
                 }
             };
 
@@ -126,5 +134,57 @@ const DB = {
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
         });
+    },
+
+    // Export all data as JSON backup
+    async exportBackup() {
+        const stores = ['users', 'orders', 'cart', 'reservations'];
+        const backup = { version: DB_VERSION, exportedAt: new Date().toISOString(), data: {} };
+
+        for (const storeName of stores) {
+            backup.data[storeName] = await this.getAll(storeName);
+        }
+
+        return backup;
+    },
+
+    // Import data from JSON backup
+    async importBackup(backup) {
+        if (!backup || !backup.data) {
+            throw new Error('Invalid backup file.');
+        }
+
+        const stores = ['users', 'orders', 'cart', 'reservations'];
+        let imported = { users: 0, orders: 0, cart: 0, reservations: 0 };
+
+        for (const storeName of stores) {
+            const items = backup.data[storeName];
+            if (!items || !Array.isArray(items)) continue;
+
+            // Clear existing data in this store
+            await this.clearStore(storeName);
+
+            // Re-insert all items
+            for (const item of items) {
+                const data = { ...item };
+                await this.add(storeName, data);
+                imported[storeName]++;
+            }
+        }
+
+        return imported;
+    },
+
+    // Count records in each store
+    async getStats() {
+        const stores = ['users', 'orders', 'cart', 'reservations'];
+        const stats = {};
+
+        for (const storeName of stores) {
+            const items = await this.getAll(storeName);
+            stats[storeName] = items.length;
+        }
+
+        return stats;
     }
 };

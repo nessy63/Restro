@@ -166,4 +166,46 @@
 #signupForm input:focus, #signinForm input:focus {
     outline: none;
     border-color: #e63946;
+}
+
+/* Checkout confirmation form */
+#checkoutForm {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+#checkoutForm input {
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #444;
+    background-color: #121212;
+    color: white;
+    font-size: 1rem;
+}
+
+#checkoutForm input:focus {
+    outline: none;
+    border-color: #e63946;
+}
+
+/* Forgot Password Forms */
+#forgotForm, #resetForm {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+#forgotForm input, #resetForm input {
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #444;
+    background-color: #121212;
+    color: white;
+    font-size: 1rem;
+}
+
+#forgotForm input:focus, #resetForm input:focus {
+    outline: none;
+    border-color: #e63946;
 }   
